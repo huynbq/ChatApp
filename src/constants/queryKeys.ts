@@ -6,6 +6,11 @@ export const queryKeys = {
   },
   chat: {
     all: ["chat"] as const,
-    messages: (chatId: string | undefined) => ["chat", "messages", chatId] as const,
+    messages: (chatId: string | undefined) =>
+      ["chat", "messages", chatId] as const,
+  },
+  user: {
+    all: ["user"] as const,
+    list: (params: { search: string }) => ["user", params],
   },
 };
