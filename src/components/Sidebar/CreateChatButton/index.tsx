@@ -81,9 +81,9 @@ const CreateChatButton = () => {
         <Button
           type="button"
           variant="outline"
-          className="mb-4 flex w-full items-center gap-2"
+          className="flex h-12 w-full items-center justify-center gap-2"
         >
-          <PlusIcon className="size-4" />
+          <PlusIcon className="size-4 shrink-0" />
           <span>New Chat</span>
         </Button>
       </DialogTrigger>

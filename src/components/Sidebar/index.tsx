@@ -1,5 +1,9 @@
 import { useAuth } from "@/auth/useAuth";
-import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+} from "@/components/ui/sidebar";
 import { useChatsQuery } from "@/hooks/queries/useChatQueries";
 import CreateChatButton from "./CreateChatButton";
 import { SidebarChatItem, SidebarChatItemSkeleton } from "./SidebarChatItem";
@@ -10,9 +14,11 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarContent className="pt-4">
+      <SidebarHeader className="flex flex-row items-center justify-between">
+        <CreateChatButton />
+      </SidebarHeader>
+      <SidebarContent>
         <div className="space-y-2 px-4">
-          <CreateChatButton />
           <div className="space-y-1">
             {isLoading
               ? Array.from({ length: 6 }).map((_, index) => (
