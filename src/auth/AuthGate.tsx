@@ -1,5 +1,4 @@
 import { type FormEvent, type ReactNode, useState } from "react";
-import { useNavigate } from "react-router";
 
 import Loading from "@/components/Loading";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,6 @@ import { useAuth } from "./useAuth";
 
 export const AuthGate = ({ children }: { children: ReactNode }) => {
   const auth = useAuth();
-  const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,7 +47,6 @@ export const AuthGate = ({ children }: { children: ReactNode }) => {
     try {
       if (mode === "signin") {
         await auth.signIn(email, password);
-        navigate("/chat", { replace: true });
       } else {
         await auth.signUp(email, password);
         setFeedback(
@@ -124,7 +121,7 @@ export const AuthGate = ({ children }: { children: ReactNode }) => {
                     />
                     <FieldDescription>
                       {mode === "signin"
-                        ? "Use the email and password for your account."
+                        ? ""
                         : "Your password must be at least 6 characters."}
                     </FieldDescription>
                   </Field>
@@ -137,7 +134,11 @@ export const AuthGate = ({ children }: { children: ReactNode }) => {
                   ) : null}
 
                   <Field>
-                    <Button className="w-full" disabled={submitting} type="submit">
+                    <Button
+                      className="w-full"
+                      disabled={submitting}
+                      type="submit"
+                    >
                       {submitting
                         ? "Please wait..."
                         : mode === "signin"
