@@ -6,7 +6,7 @@ import { chatApi } from "@/api/chatApi";
 import { API_BASE_URL } from "@/constants/api";
 import { queryKeys } from "@/constants/queryKeys";
 import { supabase } from "@/lib/supabase";
-import type { CreateMessageInput, Message } from "@/types/types";
+import type { CreateChatInput, CreateMessageInput, Message } from "@/types/types";
 
 export const useMessagesQuery = (chatId: string | undefined) =>
   useQuery({
@@ -24,6 +24,23 @@ export const useSendMessageMutation = () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.chat.messages(input.chatId),
       });
+    },
+  });
+};
+
+export const useCreateChatMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateChatInput) => {
+      if ("memberIds" in input) {
+        return chatApi.createGroupChat(input);
+      }
+
+      return chatApi.createDirectChat(input);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.chat.all });
     },
   });
 };
@@ -49,7 +66,9 @@ export const useMessagesRealtime = (chatId: string | undefined) => {
             return [...current, message];
           }
 
-          return current.map((item) => (item.id === message.id ? message : item));
+          return current.map((item) =>
+            item.id === message.id ? message : item,
+          );
         },
       );
     };
@@ -81,3 +100,9 @@ export const useMessagesRealtime = (chatId: string | undefined) => {
     };
   }, [chatId, queryClient]);
 };
+
+export const useChatsQuery = () =>
+  useQuery({
+    queryFn: () => chatApi.getChats(),
+    queryKey: queryKeys.chat.all,
+  });
