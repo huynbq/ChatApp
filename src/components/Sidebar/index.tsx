@@ -2,11 +2,11 @@ import { useAuth } from "@/auth/useAuth";
 import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
 import { useChatsQuery } from "@/hooks/queries/useChatQueries";
 import CreateChatButton from "./CreateChatButton";
-import { SidebarChatItem } from "./SidebarChatItem";
+import { SidebarChatItem, SidebarChatItemSkeleton } from "./SidebarChatItem";
 
 export function AppSidebar() {
   const { user } = useAuth();
-  const { data: chats } = useChatsQuery();
+  const { data: chats, isLoading } = useChatsQuery();
 
   return (
     <Sidebar>
@@ -14,6 +14,11 @@ export function AppSidebar() {
         <div className="space-y-2 px-4">
           <CreateChatButton />
           <div className="space-y-1">
+            {isLoading
+              ? Array.from({ length: 6 }).map((_, index) => (
+                  <SidebarChatItemSkeleton key={index} />
+                ))
+              : null}
             {chats?.map((chat) => (
               <SidebarChatItem
                 key={chat.id}
