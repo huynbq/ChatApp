@@ -49,9 +49,7 @@ export const AuthGate = ({ children }: { children: ReactNode }) => {
         await auth.signIn(email, password);
       } else {
         await auth.signUp(email, password);
-        setFeedback(
-          "Account created. Check your email if confirmation is enabled.",
-        );
+        setFeedback("Account created.");
       }
     } catch (submitError) {
       setError(
