@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { io, type Socket } from "socket.io-client";
 
 import { chatApi } from "@/api/chatApi";
-import { API_BASE_URL } from "@/constants/api";
+import { API_ORIGIN } from "@/constants/api";
 import { queryKeys } from "@/constants/queryKeys";
 import { supabase } from "@/lib/supabase";
 import type { CreateChatInput, CreateMessageInput, Message } from "@/types/types";
@@ -78,7 +78,7 @@ export const useMessagesRealtime = (chatId: string | undefined) => {
         return;
       }
 
-      socket = io(API_BASE_URL, {
+      socket = io(API_ORIGIN, {
         auth: {
           token: data.session.access_token,
         },

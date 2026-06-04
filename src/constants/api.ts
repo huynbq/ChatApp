@@ -18,3 +18,4 @@ if (!apiBaseUrl) {
 }
 
 export const API_BASE_URL = apiBaseUrl;
+export const API_ORIGIN = new URL(apiBaseUrl).origin;
