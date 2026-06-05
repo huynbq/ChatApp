@@ -16,6 +16,7 @@ import { useCreateChatMutation } from "@/hooks/queries/useChatQueries";
 import { useUsersQuery } from "@/hooks/queries/useUserQueries";
 import { PlusIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const CreateChatButton = () => {
   const [open, setOpen] = useState(false);
@@ -23,6 +24,7 @@ const CreateChatButton = () => {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search.trim(), 200);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const navigate = useNavigate();
   const createChat = useCreateChatMutation();
   const { data: users = [], isFetching } = useUsersQuery({
     enabled: open,
@@ -59,9 +61,10 @@ const CreateChatButton = () => {
         ? { name: groupName.trim(), memberIds: selectedUserIds }
         : { userId: selectedUserIds[0] },
       {
-        onSuccess: () => {
+        onSuccess: (chat) => {
           setOpen(false);
           resetForm();
+          navigate(`/chats/${chat.id}`);
         },
       },
     );
