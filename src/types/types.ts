@@ -43,6 +43,7 @@ export type ChatMember = {
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
+  lastReadAt?: string | null;
   user: {
     id: string;
     email: string;
@@ -64,6 +65,13 @@ export type Chat = {
   deletedAt?: string | null;
   members: ChatMember[];
   messages: Message[];
+  unreadCount?: number;
+};
+
+export type ChatReadPayload = {
+  chatId: string;
+  userId: string;
+  lastReadAt: string;
 };
 
 export type CreateDirectChatInput = {

@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getChatMemberLabel, getChatTitle } from "@/lib/chat";
 import { cn } from "@/lib/utils";
 import type { Chat, ChatMember } from "@/types/types";
+import { Badge } from "../ui/badge";
 
 const getInitials = (name: string) =>
   name
@@ -38,7 +39,9 @@ const ChatAvatar = ({ member }: { member: ChatMember }) => {
 
   return (
     <Avatar>
-      {member.user.avatarUrl ? <AvatarImage src={member.user.avatarUrl} /> : null}
+      {member.user.avatarUrl ? (
+        <AvatarImage src={member.user.avatarUrl} />
+      ) : null}
       <AvatarFallback>{getInitials(label)}</AvatarFallback>
     </Avatar>
   );
@@ -55,7 +58,9 @@ const ChatListAvatar = ({
     (member) => member.userId !== currentUserId,
   );
   const visibleMembers =
-    chat.type === "DIRECT" ? otherMembers.slice(0, 1) : chat.members.slice(0, 2);
+    chat.type === "DIRECT"
+      ? otherMembers.slice(0, 1)
+      : chat.members.slice(0, 2);
   const hiddenCount =
     chat.type === "GROUP" ? Math.max(chat.members.length - 2, 0) : 0;
 
@@ -70,7 +75,9 @@ const ChatListAvatar = ({
       {visibleMembers.map((member) => (
         <ChatAvatar key={member.id} member={member} />
       ))}
-      {hiddenCount > 0 ? <AvatarGroupCount>+{hiddenCount}</AvatarGroupCount> : null}
+      {hiddenCount > 0 ? (
+        <AvatarGroupCount>+{hiddenCount}</AvatarGroupCount>
+      ) : null}
     </AvatarGroup>
   );
 };
@@ -86,6 +93,8 @@ export function SidebarChatItem({
   isActive?: boolean;
   onClick?: () => void;
 }) {
+  const unreadCount = chat.unreadCount ?? 0;
+
   return (
     <Button
       variant="ghost"
@@ -104,6 +113,9 @@ export function SidebarChatItem({
           {getLastMessagePreview(chat)}
         </span>
       </span>
+      {unreadCount > 0 ? (
+        <Badge variant={"outline"}> {unreadCount > 99 ? "99+" : unreadCount}</Badge>
+      ) : null}
     </Button>
   );
 }

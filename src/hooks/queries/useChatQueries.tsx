@@ -6,9 +6,19 @@ import { chatApi } from "@/api/chatApi";
 import { API_ORIGIN } from "@/constants/api";
 import { queryKeys } from "@/constants/queryKeys";
 import { supabase } from "@/lib/supabase";
-import type { Chat, CreateChatInput, CreateMessageInput, Message } from "@/types/types";
+import type {
+  Chat,
+  ChatReadPayload,
+  CreateChatInput,
+  CreateMessageInput,
+  Message,
+} from "@/types/types";
 
-const moveChatWithMessageToTop = (chats: Chat[] = [], message: Message) => {
+const moveChatWithMessageToTop = (
+  chats: Chat[] = [],
+  message: Message,
+  options: { incrementUnread?: boolean } = {},
+) => {
   const chat = chats.find((item) => item.id === message.chatId);
 
   if (!chat) {
@@ -19,10 +29,18 @@ const moveChatWithMessageToTop = (chats: Chat[] = [], message: Message) => {
     ...chat,
     messages: [message],
     updatedAt: message.createdAt,
+    unreadCount: options.incrementUnread
+      ? (chat.unreadCount ?? 0) + 1
+      : (chat.unreadCount ?? 0),
   };
 
   return [updatedChat, ...chats.filter((item) => item.id !== message.chatId)];
 };
+
+const clearChatUnread = (chats: Chat[] = [], chatId: string) =>
+  chats.map((chat) =>
+    chat.id === chatId ? { ...chat, unreadCount: 0 } : chat,
+  );
 
 export const useMessagesQuery = (chatId: string | undefined) =>
   useQuery({
@@ -74,6 +92,19 @@ export const useCreateChatMutation = () => {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.chat.all });
+    },
+  });
+};
+
+export const useMarkChatReadMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (chatId: string) => chatApi.markChatRead(chatId),
+    onSuccess: (_payload, chatId) => {
+      queryClient.setQueryData<Chat[]>(queryKeys.chat.all, (current = []) =>
+        clearChatUnread(current, chatId),
+      );
     },
   });
 };
@@ -138,7 +169,10 @@ export const useMessagesRealtime = (chatId: string | undefined) => {
   }, [chatId, queryClient]);
 };
 
-export const useChatListRealtime = () => {
+export const useChatListRealtime = (
+  activeChatId: string | undefined,
+  currentUserId: string | undefined,
+) => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -153,8 +187,25 @@ export const useChatListRealtime = () => {
         return;
       }
 
+      const shouldIncrementUnread =
+        message.chatId !== activeChatId && message.sender?.id !== currentUserId;
+
+      queryClient.setQueryData<Chat[]>(
+        queryKeys.chat.all,
+        (current = []) =>
+          moveChatWithMessageToTop(current, message, {
+            incrementUnread: shouldIncrementUnread,
+          }),
+      );
+    };
+
+    const handleChatRead = (payload: ChatReadPayload) => {
+      if (payload.userId !== currentUserId) {
+        return;
+      }
+
       queryClient.setQueryData<Chat[]>(queryKeys.chat.all, (current = []) =>
-        moveChatWithMessageToTop(current, message),
+        clearChatUnread(current, payload.chatId),
       );
     };
 
@@ -171,13 +222,14 @@ export const useChatListRealtime = () => {
       });
 
       socket.on("chat.message_created", handleMessageCreated);
+      socket.on("chat.read", handleChatRead);
     });
 
     return () => {
       isActive = false;
       socket?.disconnect();
     };
-  }, [queryClient]);
+  }, [activeChatId, currentUserId, queryClient]);
 };
 
 export const useChatsQuery = () =>

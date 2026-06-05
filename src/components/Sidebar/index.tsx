@@ -15,7 +15,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { chatId } = useParams();
 
-  useChatListRealtime();
+  useChatListRealtime(chatId, user?.id);
 
   return (
     <Sidebar>

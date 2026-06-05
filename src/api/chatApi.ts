@@ -41,4 +41,8 @@ export const chatApi = {
     const { data } = await apiClient.get<Chat[]>(`/chats`);
     return data;
   },
+  markChatRead: async (chatId: string) => {
+    const { data } = await apiClient.post(`/chats/${chatId}/read`);
+    return data;
+  },
 };

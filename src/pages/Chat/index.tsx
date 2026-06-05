@@ -19,13 +19,14 @@ import {
 import { ScrollButton } from "@/components/ui/scroll-button";
 import { useAuth } from "@/auth/useAuth";
 import {
+  useMarkChatReadMutation,
   useMessagesQuery,
   useMessagesRealtime,
   useSendMessageMutation,
 } from "@/hooks/queries/useChatQueries";
 import { cn } from "@/lib/utils";
 import { ArrowUp, Pencil, Plus, Trash } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 const getSenderName = (sender: {
@@ -48,7 +49,16 @@ const ChatPage = () => {
   const [prompt, setPrompt] = useState("");
   const { data: chatMessages = [], isLoading } = useMessagesQuery(chatId);
   const sendMessage = useSendMessageMutation();
+  const markChatRead = useMarkChatReadMutation();
   useMessagesRealtime(chatId);
+
+  useEffect(() => {
+    if (!chatId) {
+      return;
+    }
+
+    markChatRead.mutate(chatId);
+  }, [chatId, chatMessages.length]);
 
   const handleSubmit = () => {
     const content = prompt.trim();
@@ -181,17 +191,11 @@ const ChatPage = () => {
                 <div className="flex items-center gap-2">
                   <Button
                     size="icon"
-                    disabled={
-                      !chatId || !prompt.trim() || sendMessage.isPending
-                    }
+                    disabled={!chatId || !prompt.trim()}
                     onClick={handleSubmit}
                     className="size-9 rounded-full"
                   >
-                    {!sendMessage.isPending ? (
-                      <ArrowUp size={18} />
-                    ) : (
-                      <span className="size-3 rounded-xs bg-white" />
-                    )}
+                    <ArrowUp size={18} />
                   </Button>
                 </div>
               </PromptInputActions>
