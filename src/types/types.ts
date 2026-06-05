@@ -1,6 +1,7 @@
 import type { Session, User } from "@supabase/supabase-js";
 
 export type Message = {
+  chatId: string;
   content: string | null;
   createdAt: string;
   deletedAt?: string | null;
@@ -8,6 +9,7 @@ export type Message = {
   id: string;
   isDeleted?: boolean;
   sender?: {
+    avatarUrl?: string | null;
     displayName?: string | null;
     email?: string | null;
     id: string;
