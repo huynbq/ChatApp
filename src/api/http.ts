@@ -15,6 +15,10 @@ apiClient.interceptors.request.use(async (config) => {
   const { data } = await supabase.auth.getSession();
   const headers = AxiosHeaders.from(config.headers);
 
+  if (config.data instanceof FormData) {
+    headers.delete("Content-Type");
+  }
+
   if (data.session?.access_token) {
     headers.set("Authorization", `Bearer ${data.session.access_token}`);
   }

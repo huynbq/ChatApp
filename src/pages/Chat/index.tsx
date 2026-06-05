@@ -17,6 +17,7 @@ import {
   PromptInputTextarea,
 } from "@/components/ui/prompt-input";
 import { ScrollButton } from "@/components/ui/scroll-button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/auth/useAuth";
 import {
   useDeleteMessageMutation,
@@ -25,10 +26,12 @@ import {
   useMessagesQuery,
   useMessagesRealtime,
   useSendMessageMutation,
+  useSendPhotoMessageMutation,
 } from "@/hooks/queries/useChatQueries";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
-import { ArrowUp, Pencil, Plus, Trash } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowUp, Pencil, Plus, Trash, X } from "lucide-react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useParams } from "react-router-dom";
 
 const getSenderName = (sender: {
@@ -45,14 +48,60 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
+const getAttachmentUrl = (bucket: string, path: string) =>
+  supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+
+type PendingPhoto = {
+  file: File;
+  id: string;
+  previewUrl: string;
+};
+
+type PhotoAttachmentImageProps = {
+  alt: string;
+  bucket: string;
+  path: string;
+};
+
+const PhotoAttachmentImage = ({
+  alt,
+  bucket,
+  path,
+}: PhotoAttachmentImageProps) => {
+  const [isLoading, setIsLoading] = useState(true);
+
+  return (
+    <div className="bg-muted relative h-48 w-72 max-w-full overflow-hidden rounded-xl">
+      {isLoading ? (
+        <Skeleton className="photo-skeleton-shimmer absolute inset-0 h-full w-full" />
+      ) : null}
+      <img
+        src={getAttachmentUrl(bucket, path)}
+        alt={alt}
+        className={cn(
+          "h-full w-full rounded-xl object-cover transition-opacity",
+          isLoading ? "opacity-0" : "opacity-100",
+        )}
+        loading="lazy"
+        onLoad={() => setIsLoading(false)}
+        onError={() => setIsLoading(false)}
+      />
+    </div>
+  );
+};
+
 const ChatPage = () => {
   const { user } = useAuth();
   const { chatId } = useParams();
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const pendingPhotoRef = useRef<PendingPhoto | null>(null);
   const [prompt, setPrompt] = useState("");
+  const [pendingPhoto, setPendingPhoto] = useState<PendingPhoto | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const { data: chatMessages = [], isLoading } = useMessagesQuery(chatId);
   const sendMessage = useSendMessageMutation();
+  const sendPhotoMessage = useSendPhotoMessageMutation();
   const editMessage = useEditMessageMutation();
   const deleteMessage = useDeleteMessageMutation();
   const markChatRead = useMarkChatReadMutation();
@@ -66,12 +115,37 @@ const ChatPage = () => {
     markChatRead.mutate(chatId);
   }, [chatId, chatMessages.length]);
 
+  useEffect(() => {
+    pendingPhotoRef.current = pendingPhoto;
+  }, [pendingPhoto]);
+
+  useEffect(
+    () => () => {
+      if (pendingPhotoRef.current) {
+        URL.revokeObjectURL(pendingPhotoRef.current.previewUrl);
+      }
+    },
+    [],
+  );
+
   const handleSubmit = () => {
     const content = prompt.trim();
     setPrompt("");
-    if (!chatId || !content) return;
 
-    sendMessage.mutate({ chatId, content });
+    if (!chatId || (!content && !pendingPhoto)) return;
+
+    if (pendingPhoto) {
+      const photo = pendingPhoto;
+      sendPhotoMessage.mutate({
+        chatId,
+        content: content || undefined,
+        file: photo.file,
+      });
+      setPendingPhoto(null);
+      URL.revokeObjectURL(photo.previewUrl);
+    } else {
+      sendMessage.mutate({ chatId, content });
+    }
   };
 
   const startEditing = (messageId: string, content: string | null) => {
@@ -98,6 +172,32 @@ const ChatPage = () => {
     if (!chatId) return;
 
     deleteMessage.mutate({ chatId, messageId });
+  };
+
+  const handlePhotoSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = Array.from(event.target.files ?? []).find((item) =>
+      item.type.startsWith("image/"),
+    );
+    event.target.value = "";
+
+    if (!file) return;
+
+    setPendingPhoto((current) => {
+      if (current) URL.revokeObjectURL(current.previewUrl);
+
+      return {
+        file,
+        id: `${file.name}-${file.lastModified}-${crypto.randomUUID()}`,
+        previewUrl: URL.createObjectURL(file),
+      };
+    });
+  };
+
+  const removePendingPhoto = () => {
+    setPendingPhoto((current) => {
+      if (current) URL.revokeObjectURL(current.previewUrl);
+      return null;
+    });
   };
 
   return (
@@ -128,9 +228,17 @@ const ChatPage = () => {
               const senderFallback = getInitials(senderName);
               const isEditing = editingMessageId === message.id;
               const canModify = isCurrentUser && !message.isDeleted;
+              const imageAttachments = (message.attachments ?? []).filter(
+                (attachment) => attachment.mimeType.startsWith("image/"),
+              );
+              const hasImages = imageAttachments.length > 0;
+              const shouldHideDefaultPhotoText =
+                hasImages && message.content === "Photo";
               const messageText = message.isDeleted
                 ? "Message deleted"
-                : message.content || "Attachment";
+                : shouldHideDefaultPhotoText
+                  ? ""
+                  : message.content || (hasImages ? "" : "Attachment");
 
               return (
                 <Message
@@ -149,12 +257,24 @@ const ChatPage = () => {
                       />
                       <MessageContent
                         className={cn(
-                          "text-foreground prose flex-1 max-w-fit ",
+                          "text-foreground prose flex-1 max-w-fit",
                           message.isDeleted &&
                             "bg-muted text-muted-foreground italic",
                         )}
                       >
-                        {messageText}
+                        {hasImages && !message.isDeleted ? (
+                          <div className="mb-2 grid max-w-80 gap-2">
+                            {imageAttachments.map((attachment) => (
+                              <PhotoAttachmentImage
+                                key={attachment.id}
+                                alt={message.content || "Photo attachment"}
+                                bucket={attachment.bucket}
+                                path={attachment.path}
+                              />
+                            ))}
+                          </div>
+                        ) : null}
+                        {messageText ? <span>{messageText}</span> : null}
                       </MessageContent>
                     </div>
                   ) : (
@@ -215,7 +335,21 @@ const ChatPage = () => {
                                   "bg-muted text-muted-foreground italic",
                               )}
                             >
-                              {messageText}
+                              {hasImages && !message.isDeleted ? (
+                                <div className="mb-2 grid max-w-80 gap-2">
+                                  {imageAttachments.map((attachment) => (
+                                    <PhotoAttachmentImage
+                                      key={attachment.id}
+                                      alt={
+                                        message.content || "Photo attachment"
+                                      }
+                                      bucket={attachment.bucket}
+                                      path={attachment.path}
+                                    />
+                                  ))}
+                                </div>
+                              ) : null}
+                              {messageText ? <span>{messageText}</span> : null}
                             </MessageContent>
                             {message.editedAt && !message.isDeleted ? (
                               <span className="text-muted-foreground mt-1 text-right text-xs">
@@ -273,7 +407,7 @@ const ChatPage = () => {
       <div className="bg-background z-10 shrink-0 px-3 pb-3 md:px-5 md:pb-5">
         <div className="mx-auto max-w-3xl">
           <PromptInput
-            isLoading={sendMessage.isPending}
+            isLoading={sendMessage.isPending || sendPhotoMessage.isPending}
             value={prompt}
             onValueChange={setPrompt}
             onSubmit={handleSubmit}
@@ -281,17 +415,27 @@ const ChatPage = () => {
           >
             <div className="flex flex-col">
               <PromptInputTextarea
-                placeholder="Ask anything"
+                placeholder="Type anything"
                 className="min-h-11 pt-3 pl-4 text-base leading-[1.3] sm:text-base md:text-base"
               />
 
               <PromptInputActions className="mt-5 flex w-full items-center justify-between gap-2 px-3 pb-3">
                 <div className="flex items-center gap-2">
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePhotoSelect}
+                  />
                   <PromptInputAction tooltip="Add an attachment">
                     <Button
+                      type="button"
                       variant="outline"
                       size="icon"
                       className="size-9 rounded-full"
+                      disabled={!chatId || sendPhotoMessage.isPending}
+                      onClick={() => photoInputRef.current?.click()}
                     >
                       <Plus size={18} />
                     </Button>
@@ -299,8 +443,14 @@ const ChatPage = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
+                    type="button"
                     size="icon"
-                    disabled={!chatId || !prompt.trim()}
+                    disabled={
+                      !chatId ||
+                      (!prompt.trim() && !pendingPhoto) ||
+                      sendMessage.isPending ||
+                      sendPhotoMessage.isPending
+                    }
                     onClick={handleSubmit}
                     className="size-9 rounded-full"
                   >
@@ -308,6 +458,26 @@ const ChatPage = () => {
                   </Button>
                 </div>
               </PromptInputActions>
+              {pendingPhoto ? (
+                <div className="flex gap-2 overflow-x-auto px-3 pb-3">
+                  <div className="relative shrink-0">
+                    <img
+                      src={pendingPhoto.previewUrl}
+                      alt={pendingPhoto.file.name}
+                      className="size-16 rounded-xl object-cover"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="absolute -right-2 -top-2 size-6 rounded-full shadow-sm"
+                      onClick={removePendingPhoto}
+                    >
+                      <X size={14} />
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </PromptInput>
         </div>

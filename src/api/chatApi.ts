@@ -4,6 +4,7 @@ import type {
   CreateDirectChatInput,
   CreateGroupChatInput,
   CreateMessageInput,
+  CreatePhotoMessageInput,
   DeleteMessageInput,
   EditMessageInput,
   Message,
@@ -23,6 +24,29 @@ export const chatApi = {
     const { data } = await apiClient.post<Message>(
       `/chats/${chatId}/messages`,
       body,
+    );
+
+    return data;
+  },
+  createPhotoMessage: async (input: CreatePhotoMessageInput) => {
+    const formData = new FormData();
+    formData.append("photo", input.file);
+
+    if (input.content?.trim()) {
+      formData.append("content", input.content.trim());
+    }
+
+    if (input.replyToMessageId) {
+      formData.append("replyToMessageId", input.replyToMessageId);
+    }
+
+    if (input.mentionUserIds?.length) {
+      formData.append("mentionUserIds", input.mentionUserIds.join(","));
+    }
+
+    const { data } = await apiClient.post<Message>(
+      `/chats/${input.chatId}/messages/photo`,
+      formData,
     );
 
     return data;

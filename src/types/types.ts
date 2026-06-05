@@ -1,6 +1,7 @@
 import type { Session, User } from "@supabase/supabase-js";
 
 export type Message = {
+  attachments?: MessageAttachment[];
   chatId: string;
   content: string | null;
   createdAt: string;
@@ -17,9 +18,27 @@ export type Message = {
   };
 };
 
+export type MessageAttachment = {
+  bucket: string;
+  createdAt?: string;
+  id: string;
+  messageId: string;
+  mimeType: string;
+  path: string;
+  sizeBytes: number;
+};
+
 export type CreateMessageInput = {
   chatId: string;
   content: string;
+  mentionUserIds?: string[];
+  replyToMessageId?: string;
+};
+
+export type CreatePhotoMessageInput = {
+  chatId: string;
+  content?: string;
+  file: File;
   mentionUserIds?: string[];
   replyToMessageId?: string;
 };

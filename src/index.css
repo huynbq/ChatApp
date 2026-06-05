@@ -256,3 +256,22 @@ code {
     @apply bg-background text-foreground;}
   html {
     @apply font-sans;}}
+
+@layer utilities {
+  .photo-skeleton-shimmer {
+    background: linear-gradient(
+      110deg,
+      var(--muted) 8%,
+      color-mix(in oklch, var(--muted-foreground) 22%, var(--muted)) 18%,
+      var(--muted) 33%
+    );
+    background-size: 200% 100%;
+    animation: photo-skeleton-shimmer 1.2s ease-in-out infinite;
+  }
+
+  @keyframes photo-skeleton-shimmer {
+    to {
+      background-position-x: -200%;
+    }
+  }
+}

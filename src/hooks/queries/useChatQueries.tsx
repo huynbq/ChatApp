@@ -11,6 +11,7 @@ import type {
   ChatReadPayload,
   CreateChatInput,
   CreateMessageInput,
+  CreatePhotoMessageInput,
   DeleteMessageInput,
   EditMessageInput,
   Message,
@@ -73,6 +74,29 @@ export const useSendMessageMutation = () => {
 
   return useMutation({
     mutationFn: (input: CreateMessageInput) => chatApi.createMessage(input),
+    onSuccess: (message, input) => {
+      queryClient.setQueryData<Message[]>(
+        queryKeys.chat.messages(input.chatId),
+        (current = []) => upsertMessage(current, message),
+      );
+
+      queryClient.setQueryData<Chat[]>(queryKeys.chat.all, (current = []) =>
+        moveChatWithMessageToTop(current, message),
+      );
+
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.chat.all,
+      });
+    },
+  });
+};
+
+export const useSendPhotoMessageMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreatePhotoMessageInput) =>
+      chatApi.createPhotoMessage(input),
     onSuccess: (message, input) => {
       queryClient.setQueryData<Message[]>(
         queryKeys.chat.messages(input.chatId),
