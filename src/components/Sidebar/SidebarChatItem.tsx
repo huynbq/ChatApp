@@ -7,10 +7,9 @@ import {
 } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getChatMemberLabel, getChatTitle } from "@/lib/chat";
+import { cn } from "@/lib/utils";
 import type { Chat, ChatMember } from "@/types/types";
-
-const getUserLabel = (member: ChatMember | undefined) =>
-  member?.user.displayName || member?.user.username || member?.user.email || "User";
 
 const getInitials = (name: string) =>
   name
@@ -19,18 +18,6 @@ const getInitials = (name: string) =>
     .join("")
     .slice(0, 2)
     .toUpperCase();
-
-const getChatTitle = (chat: Chat, currentUserId: string | undefined) => {
-  if (chat.type === "GROUP") {
-    return chat.name || "Group chat";
-  }
-
-  const otherMember = chat.members.find(
-    (member) => member.userId !== currentUserId,
-  );
-
-  return getUserLabel(otherMember);
-};
 
 const getLastMessagePreview = (chat: Chat) => {
   const lastMessage = chat.messages[0];
@@ -47,7 +34,7 @@ const getLastMessagePreview = (chat: Chat) => {
 };
 
 const ChatAvatar = ({ member }: { member: ChatMember }) => {
-  const label = getUserLabel(member);
+  const label = getChatMemberLabel(member);
 
   return (
     <Avatar>
@@ -91,14 +78,22 @@ const ChatListAvatar = ({
 export function SidebarChatItem({
   chat,
   currentUserId,
+  isActive,
+  onClick,
 }: {
   chat: Chat;
   currentUserId: string | undefined;
+  isActive?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <Button
       variant="ghost"
-      className="h-auto w-full justify-start gap-3 px-2 py-2 text-left"
+      className={cn(
+        "h-auto w-full justify-start gap-3 px-2 py-2 text-left",
+        isActive && "bg-muted text-foreground",
+      )}
+      onClick={onClick}
     >
       <ChatListAvatar chat={chat} currentUserId={currentUserId} />
       <span className="min-w-0 flex-1">
