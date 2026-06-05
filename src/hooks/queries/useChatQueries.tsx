@@ -42,6 +42,15 @@ const clearChatUnread = (chats: Chat[] = [], chatId: string) =>
     chat.id === chatId ? { ...chat, unreadCount: 0 } : chat,
   );
 
+const upsertChatToTop = (chats: Chat[] = [], chat: Chat) => {
+  const existing = chats.find((item) => item.id === chat.id);
+
+  return [
+    { ...chat, unreadCount: existing?.unreadCount ?? chat.unreadCount ?? 0 },
+    ...chats.filter((item) => item.id !== chat.id),
+  ];
+};
+
 export const useMessagesQuery = (chatId: string | undefined) =>
   useQuery({
     enabled: Boolean(chatId),
@@ -90,8 +99,10 @@ export const useCreateChatMutation = () => {
 
       return chatApi.createDirectChat(input);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.chat.all });
+    onSuccess: (chat) => {
+      queryClient.setQueryData<Chat[]>(queryKeys.chat.all, (current = []) =>
+        upsertChatToTop(current, chat),
+      );
     },
   });
 };
@@ -199,6 +210,12 @@ export const useChatListRealtime = (
       );
     };
 
+    const handleChatCreated = (chat: Chat) => {
+      queryClient.setQueryData<Chat[]>(queryKeys.chat.all, (current = []) =>
+        upsertChatToTop(current, chat),
+      );
+    };
+
     const handleChatRead = (payload: ChatReadPayload) => {
       if (payload.userId !== currentUserId) {
         return;
@@ -221,6 +238,7 @@ export const useChatListRealtime = (
         transports: ["websocket"],
       });
 
+      socket.on("chat.created", handleChatCreated);
       socket.on("chat.message_created", handleMessageCreated);
       socket.on("chat.read", handleChatRead);
     });
