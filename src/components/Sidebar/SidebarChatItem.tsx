@@ -114,7 +114,7 @@ export function SidebarChatItem({
         </span>
       </span>
       {unreadCount > 0 ? (
-        <Badge variant={"outline"}> {unreadCount > 99 ? "99+" : unreadCount}</Badge>
+        <Badge variant={"destructive"}> {unreadCount > 99 ? "99+" : unreadCount}</Badge>
       ) : null}
     </Button>
   );
