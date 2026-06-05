@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { useEffect } from "react";
 
 import { chatApi } from "@/api/chatApi";
@@ -60,12 +61,28 @@ const upsertChatToTop = (chats: Chat[] = [], chat: Chat) => {
   ];
 };
 
-export const useMessagesQuery = (chatId: string | undefined) =>
-  useQuery({
+const isForbiddenError = (error: unknown) =>
+  isAxiosError(error) && error.response?.status === 403;
+
+export const useMessagesQuery = (chatId: string | undefined) => {
+  const query = useQuery({
     enabled: Boolean(chatId),
     queryFn: () => chatApi.getMessages(chatId!),
     queryKey: queryKeys.chat.messages(chatId),
+    retry: (failureCount, error) => {
+      if (isForbiddenError(error)) {
+        return false;
+      }
+
+      return failureCount < 3;
+    },
   });
+
+  return {
+    ...query,
+    isForbidden: isForbiddenError(query.error),
+  };
+};
 
 export const useSendMessageMutation = () => {
   const queryClient = useQueryClient();

@@ -36,16 +36,20 @@ const ChatPage = () => {
     pendingPhoto,
     removePendingPhoto,
   } = usePendingPhoto();
-  const { data: chatMessages = [], isLoading } = useMessagesQuery(chatId);
+  const {
+    data: chatMessages = [],
+    isForbidden: isForbiddenChat,
+    isLoading,
+  } = useMessagesQuery(chatId);
   const sendMessage = useSendMessageMutation();
   const sendPhotoMessage = useSendPhotoMessageMutation();
   const editMessage = useEditMessageMutation();
   const deleteMessage = useDeleteMessageMutation();
   const markChatRead = useMarkChatReadMutation();
-  useMessagesRealtime(chatId);
+  useMessagesRealtime(isForbiddenChat ? undefined : chatId);
 
   useEffect(() => {
-    if (!chatId) {
+    if (!chatId || isForbiddenChat) {
       return;
     }
 
@@ -62,7 +66,7 @@ const ChatPage = () => {
 
     lastMarkedReadKeyRef.current = readKey;
     markChatRead.mutate(chatId);
-  }, [chatId, chatMessages, markChatRead, user?.id]);
+  }, [chatId, chatMessages, isForbiddenChat, markChatRead, user?.id]);
 
   const handleSubmit = () => {
     const content = prompt.trim();
@@ -124,12 +128,23 @@ const ChatPage = () => {
                 Loading messages...
               </div>
             ) : null}
-            {chatId && !isLoading && chatMessages.length === 0 ? (
+            {isForbiddenChat ? (
+              <div className="text-muted-foreground mx-auto flex min-h-80 max-w-3xl flex-col items-center justify-center gap-2 text-center text-sm">
+                <p className="text-foreground font-medium">
+                  You do not have access to this chat.
+                </p>
+                <p>
+                  This chat either does not exist or your account is not a
+                  member.
+                </p>
+              </div>
+            ) : null}
+            {chatId && !isLoading && !isForbiddenChat && chatMessages.length === 0 ? (
               <div className="text-muted-foreground mx-auto flex min-h-80 max-w-3xl items-center justify-center text-sm">
                 No messages yet. Start the conversation.
               </div>
             ) : null}
-            {chatMessages.map((message) => (
+            {!isForbiddenChat ? chatMessages.map((message) => (
               <ChatMessageItem
                 key={message.id}
                 canDelete={deleteMessage.isPending}
@@ -144,7 +159,7 @@ const ChatPage = () => {
                 onSaveEdit={saveEdit}
                 onStartEditing={startEditing}
               />
-            ))}
+            )) : null}
           </ChatContainerContent>
           <div className="absolute bottom-4 left-1/2 flex w-full max-w-3xl -translate-x-1/2 justify-end px-5">
             <ScrollButton className="shadow-sm" />
@@ -155,7 +170,7 @@ const ChatPage = () => {
       <div className="bg-background z-10 shrink-0 px-3 pb-3 md:px-5 md:pb-5">
         <div className="mx-auto max-w-3xl">
           <ChatComposer
-            disabled={!chatId}
+            disabled={!chatId || isForbiddenChat}
             isLoading={sendMessage.isPending || sendPhotoMessage.isPending}
             onPhotoSelect={handlePhotoSelect}
             onRemovePhoto={removePendingPhoto}
