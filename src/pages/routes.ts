@@ -8,4 +8,8 @@ export default [
     component: ChatPage,
     index: true,
   },
+  {
+    path: "/chats/:chatId",
+    component: ChatPage,
+  },
 ];
