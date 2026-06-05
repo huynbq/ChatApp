@@ -7,6 +7,7 @@ import {
   Message,
   MessageAction,
   MessageActions,
+  MessageAvatar,
   MessageContent,
 } from "@/components/ui/message";
 import {
@@ -16,172 +17,128 @@ import {
   PromptInputTextarea,
 } from "@/components/ui/prompt-input";
 import { ScrollButton } from "@/components/ui/scroll-button";
-import { cn } from "@/lib/utils";
+import { useAuth } from "@/auth/useAuth";
 import {
-  ArrowUp,
-  Copy,
-  Globe,
-  Mic,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  ThumbsDown,
-  ThumbsUp,
-  Trash,
-} from "lucide-react";
-import { useRef, useState } from "react";
-const initialMessages = [
-  {
-    id: 1,
-    role: "user",
-    content: "Hello! Can you help me with a coding question?",
-  },
-  {
-    id: 2,
-    role: "assistant",
-    content:
-      "Of course! I'd be happy to help with your coding question. What would you like to know?",
-  },
-  {
-    id: 3,
-    role: "user",
-    content: "How do I create a responsive layout with CSS Grid?",
-  },
-  {
-    id: 4,
-    role: "assistant",
-    content:
-      "Creating a responsive layout with CSS Grid is straightforward. Here's a basic example:\n\n```css\n.container {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));\n  gap: 1rem;\n}\n```\n\nThis creates a grid where:\n- Columns automatically fit as many as possible\n- Each column is at least 250px wide\n- Columns expand to fill available space\n- There's a 1rem gap between items\n\nWould you like me to explain more about how this works?",
-  },
-];
+  useMessagesQuery,
+  useMessagesRealtime,
+  useSendMessageMutation,
+} from "@/hooks/queries/useChatQueries";
+import { cn } from "@/lib/utils";
+import { ArrowUp, Pencil, Plus, Trash } from "lucide-react";
+import { useState } from "react";
+import { useParams } from "react-router-dom";
+
+const getSenderName = (sender: {
+  displayName?: string | null;
+  email?: string | null;
+  username?: string | null;
+}) => sender.displayName || sender.username || sender.email || "User";
+
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
 const ChatPage = () => {
+  const { user } = useAuth();
+  const { chatId } = useParams();
   const [prompt, setPrompt] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [chatMessages, setChatMessages] = useState(initialMessages);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const { data: chatMessages = [], isLoading } = useMessagesQuery(chatId);
+  const sendMessage = useSendMessageMutation();
+  useMessagesRealtime(chatId);
 
   const handleSubmit = () => {
-    if (!prompt.trim()) return;
-
+    const content = prompt.trim();
     setPrompt("");
-    setIsLoading(true);
+    if (!chatId || !content) return;
 
-    // Add user message immediately
-    const newUserMessage = {
-      id: chatMessages.length + 1,
-      role: "user",
-      content: prompt.trim(),
-    };
-
-    setChatMessages([...chatMessages, newUserMessage]);
-
-    // Simulate API response
-    setTimeout(() => {
-      const assistantResponse = {
-        id: chatMessages.length + 2,
-        role: "assistant",
-        content: `This is a response to: "${prompt.trim()}"`,
-      };
-
-      setChatMessages((prev) => [...prev, assistantResponse]);
-      setIsLoading(false);
-    }, 1500);
+    sendMessage.mutate({ chatId, content });
   };
   return (
     <main className="flex h-full min-h-0 flex-col">
-      <div ref={chatContainerRef} className="relative min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
         <ChatContainerRoot className="h-full">
-          <ChatContainerContent className="space-y-0 px-5 py-12 pb-6">
-            {chatMessages.map((message, index) => {
-              const isAssistant = message.role === "assistant";
-              const isLastMessage = index === chatMessages.length - 1;
+          <ChatContainerContent className="space-y-2 px-5 py-12 pb-6">
+            {!chatId ? (
+              <div className="text-muted-foreground mx-auto flex min-h-80 max-w-3xl items-center justify-center text-sm">
+                Select a chat from the sidebar.
+              </div>
+            ) : null}
+            {chatId && isLoading ? (
+              <div className="text-muted-foreground mx-auto flex min-h-80 max-w-3xl items-center justify-center text-sm">
+                Loading messages...
+              </div>
+            ) : null}
+            {chatId && !isLoading && chatMessages.length === 0 ? (
+              <div className="text-muted-foreground mx-auto flex min-h-80 max-w-3xl items-center justify-center text-sm">
+                No messages yet. Start the conversation.
+              </div>
+            ) : null}
+            {chatMessages.map((message) => {
+              const isCurrentUser = message.sender?.id === user?.id;
+              const senderName = message.sender
+                ? getSenderName(message.sender)
+                : "User";
+              const senderFallback = getInitials(senderName);
 
               return (
                 <Message
                   key={message.id}
                   className={cn(
                     "mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-2 px-6",
-                    isAssistant ? "items-start" : "items-end",
+                    isCurrentUser ? "items-end" : "items-start",
                   )}
                 >
-                  {isAssistant ? (
-                    <div className="group flex w-full min-w-0 flex-col gap-0">
+                  {!isCurrentUser ? (
+                    <div className="group flex w-full min-w-0 gap-2">
+                      <MessageAvatar
+                        src={message.sender?.avatarUrl}
+                        alt={senderName}
+                        fallback={senderFallback}
+                      />
                       <MessageContent className="text-foreground prose flex-1 max-w-fit">
-                        {message.content}
+                        {message.content || "Attachment"}
                       </MessageContent>
-                      <MessageActions
-                        className={cn(
-                          "-ml-2.5 flex gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100",
-                          isLastMessage && "opacity-100",
-                        )}
-                      >
-                        <MessageAction tooltip="Copy" delayDuration={100}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="rounded-full"
-                          >
-                            <Copy />
-                          </Button>
-                        </MessageAction>
-                        <MessageAction tooltip="Upvote" delayDuration={100}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="rounded-full"
-                          >
-                            <ThumbsUp />
-                          </Button>
-                        </MessageAction>
-                        <MessageAction tooltip="Downvote" delayDuration={100}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="rounded-full"
-                          >
-                            <ThumbsDown />
-                          </Button>
-                        </MessageAction>
-                      </MessageActions>
                     </div>
                   ) : (
-                    <div className="group flex w-full min-w-0 flex-col items-end gap-1">
-                      <MessageContent className="bg-blue-600 text-blue-50">
-                        {message.content}
-                      </MessageContent>
-                      <MessageActions
-                        className={cn(
-                          "flex gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100",
-                        )}
-                      >
-                        <MessageAction tooltip="Edit" delayDuration={100}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="rounded-full"
-                          >
-                            <Pencil />
-                          </Button>
-                        </MessageAction>
-                        <MessageAction tooltip="Delete" delayDuration={100}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="rounded-full"
-                          >
-                            <Trash />
-                          </Button>
-                        </MessageAction>
-                        <MessageAction tooltip="Copy" delayDuration={100}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="rounded-full"
-                          >
-                            <Copy />
-                          </Button>
-                        </MessageAction>
-                      </MessageActions>
+                    <div className="group flex w-full min-w-0 justify-start flex-row-reverse gap-1">
+                      <MessageAvatar
+                        src={message.sender?.avatarUrl}
+                        alt={senderName}
+                        fallback={senderFallback}
+                      />
+                      <div className="flex flex-col min-w-0">
+                        <MessageContent className="bg-blue-600 text-blue-50">
+                          {message.content || "Attachment"}
+                        </MessageContent>
+                        <MessageActions
+                          className={cn(
+                            "flex gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100",
+                          )}
+                        >
+                          <MessageAction tooltip="Edit" delayDuration={100}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="rounded-full"
+                            >
+                              <Pencil />
+                            </Button>
+                          </MessageAction>
+                          <MessageAction tooltip="Delete" delayDuration={100}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="rounded-full"
+                            >
+                              <Trash />
+                            </Button>
+                          </MessageAction>
+                        </MessageActions>
+                      </div>
                     </div>
                   )}
                 </Message>
@@ -197,7 +154,7 @@ const ChatPage = () => {
       <div className="bg-background z-10 shrink-0 px-3 pb-3 md:px-5 md:pb-5">
         <div className="mx-auto max-w-3xl">
           <PromptInput
-            isLoading={isLoading}
+            isLoading={sendMessage.isPending}
             value={prompt}
             onValueChange={setPrompt}
             onSubmit={handleSubmit}
@@ -206,12 +163,12 @@ const ChatPage = () => {
             <div className="flex flex-col">
               <PromptInputTextarea
                 placeholder="Ask anything"
-                className="min-h-[44px] pt-3 pl-4 text-base leading-[1.3] sm:text-base md:text-base"
+                className="min-h-11 pt-3 pl-4 text-base leading-[1.3] sm:text-base md:text-base"
               />
 
               <PromptInputActions className="mt-5 flex w-full items-center justify-between gap-2 px-3 pb-3">
                 <div className="flex items-center gap-2">
-                  <PromptInputAction tooltip="Add a new action">
+                  <PromptInputAction tooltip="Add an attachment">
                     <Button
                       variant="outline"
                       size="icon"
@@ -220,42 +177,17 @@ const ChatPage = () => {
                       <Plus size={18} />
                     </Button>
                   </PromptInputAction>
-
-                  <PromptInputAction tooltip="Search">
-                    <Button variant="outline" className="rounded-full">
-                      <Globe size={18} />
-                      Search
-                    </Button>
-                  </PromptInputAction>
-
-                  <PromptInputAction tooltip="More actions">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="size-9 rounded-full"
-                    >
-                      <MoreHorizontal size={18} />
-                    </Button>
-                  </PromptInputAction>
                 </div>
                 <div className="flex items-center gap-2">
-                  <PromptInputAction tooltip="Voice input">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="size-9 rounded-full"
-                    >
-                      <Mic size={18} />
-                    </Button>
-                  </PromptInputAction>
-
                   <Button
                     size="icon"
-                    disabled={!prompt.trim() || isLoading}
+                    disabled={
+                      !chatId || !prompt.trim() || sendMessage.isPending
+                    }
                     onClick={handleSubmit}
                     className="size-9 rounded-full"
                   >
-                    {!isLoading ? (
+                    {!sendMessage.isPending ? (
                       <ArrowUp size={18} />
                     ) : (
                       <span className="size-3 rounded-xs bg-white" />
