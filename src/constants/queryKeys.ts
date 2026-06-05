@@ -5,7 +5,7 @@ export const queryKeys = {
     session: () => ["auth", "session"] as const,
   },
   chat: {
-    all: ["chat"] as const,
+    all: ["chat", "list"] as const,
     messages: (chatId: string | undefined) =>
       ["chat", "messages", chatId] as const,
   },
