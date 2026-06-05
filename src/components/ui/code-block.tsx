@@ -1,6 +1,7 @@
-import { cn } from "@/lib/utils"
 import React, { useEffect, useState } from "react"
 import { codeToHtml } from "shiki"
+
+import { cn } from "@/lib/utils"
 
 export type CodeBlockProps = {
   children?: React.ReactNode
@@ -89,4 +90,4 @@ function CodeBlockGroup({
   )
 }
 
-export { CodeBlockGroup, CodeBlockCode, CodeBlock }
+export { CodeBlock,CodeBlockCode, CodeBlockGroup }

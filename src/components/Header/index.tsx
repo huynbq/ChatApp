@@ -1,3 +1,5 @@
+import { useParams } from "react-router-dom";
+
 import { useAuth } from "@/auth/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -5,7 +7,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { useChatsQuery } from "@/hooks/queries/useChatQueries";
 import { getChatTitle } from "@/lib/chat";
-import { useParams } from "react-router-dom";
 
 const Header = () => {
   const { signOut, loading, user } = useAuth();

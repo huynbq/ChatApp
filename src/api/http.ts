@@ -1,7 +1,7 @@
 import axios, { AxiosHeaders } from "axios";
 
+import { getAccessToken } from "@/auth/accessToken";
 import { API_BASE_URL } from "@/constants/api";
-import { supabase } from "@/lib/supabase";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -12,15 +12,15 @@ export const apiClient = axios.create({
 
 
 apiClient.interceptors.request.use(async (config) => {
-  const { data } = await supabase.auth.getSession();
+  const token = getAccessToken();
   const headers = AxiosHeaders.from(config.headers);
 
   if (config.data instanceof FormData) {
     headers.delete("Content-Type");
   }
 
-  if (data.session?.access_token) {
-    headers.set("Authorization", `Bearer ${data.session.access_token}`);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   config.headers = headers;

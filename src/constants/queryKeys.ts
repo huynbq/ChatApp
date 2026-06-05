@@ -11,6 +11,6 @@ export const queryKeys = {
   },
   user: {
     all: ["user"] as const,
-    list: (params: { search: string }) => ["user", params],
+    list: (search: string) => ["user", "list", search] as const,
   },
 };

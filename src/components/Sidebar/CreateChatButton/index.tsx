@@ -1,3 +1,7 @@
+import { PlusIcon } from "lucide-react";
+import { type FormEvent, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,12 +15,9 @@ import {
 import { Field, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useDebounce } from "@/hooks/useDebounce";
 import { useCreateChatMutation } from "@/hooks/queries/useChatQueries";
 import { useUsersQuery } from "@/hooks/queries/useUserQueries";
-import { PlusIcon } from "lucide-react";
-import { type FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const CreateChatButton = () => {
   const [open, setOpen] = useState(false);

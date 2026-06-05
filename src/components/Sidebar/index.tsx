@@ -1,3 +1,5 @@
+import { useNavigate, useParams } from "react-router-dom";
+
 import { useAuth } from "@/auth/useAuth";
 import {
   Sidebar,
@@ -5,7 +7,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { useChatListRealtime, useChatsQuery } from "@/hooks/queries/useChatQueries";
-import { useNavigate, useParams } from "react-router-dom";
+
 import CreateChatButton from "./CreateChatButton";
 import { SidebarChatItem, SidebarChatItemSkeleton } from "./SidebarChatItem";
 

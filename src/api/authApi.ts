@@ -1,5 +1,5 @@
-import type { AuthCredentials } from "@/types/types";
 import { supabase } from "@/lib/supabase";
+import type { AuthCredentials } from "@/types/types";
 
 const getAuthErrorMessage = (error: unknown) => {
   return error instanceof Error ? error.message : "Authentication failed";

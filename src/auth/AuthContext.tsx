@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { authApi } from "@/api/authApi";
 import { supabase } from "@/lib/supabase";
 
+import { setAccessToken } from "./accessToken";
 import { AuthContext, type AuthContextValue } from "./authCtx";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -13,11 +14,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
+      setAccessToken(data.session?.access_token ?? null);
       setLoading(false);
     });
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
+      setAccessToken(nextSession?.access_token ?? null);
       setLoading(false);
     });
 

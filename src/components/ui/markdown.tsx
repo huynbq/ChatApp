@@ -1,10 +1,12 @@
-import { cn } from "@/lib/utils"
 import { marked } from "marked"
 import { memo, useId, useMemo } from "react"
-import ReactMarkdown from "react-markdown"
 import type { Components } from "react-markdown"
+import ReactMarkdown from "react-markdown"
 import remarkBreaks from "remark-breaks"
 import remarkGfm from "remark-gfm"
+
+import { cn } from "@/lib/utils"
+
 import { CodeBlock, CodeBlockCode } from "./code-block"
 
 export type MarkdownProps = {

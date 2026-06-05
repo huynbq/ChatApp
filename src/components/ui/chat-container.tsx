@@ -1,5 +1,6 @@
-import { cn } from "@/lib/utils"
 import { StickToBottom } from "use-stick-to-bottom"
+
+import { cn } from "@/lib/utils"
 
 export type ChatContainerRootProps = {
   children: React.ReactNode
@@ -62,4 +63,4 @@ function ChatContainerScrollAnchor({
   )
 }
 
-export { ChatContainerRoot, ChatContainerContent, ChatContainerScrollAnchor }
+export { ChatContainerContent, ChatContainerRoot, ChatContainerScrollAnchor }

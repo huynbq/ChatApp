@@ -1,11 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { io, type Socket } from "socket.io-client";
 
 import { chatApi } from "@/api/chatApi";
-import { API_ORIGIN } from "@/constants/api";
 import { queryKeys } from "@/constants/queryKeys";
-import { supabase } from "@/lib/supabase";
+import { useSocket } from "@/realtime/useSocket";
 import type {
   Chat,
   ChatReadPayload,
@@ -84,9 +82,6 @@ export const useSendMessageMutation = () => {
         moveChatWithMessageToTop(current, message),
       );
 
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.chat.all,
-      });
     },
   });
 };
@@ -107,9 +102,6 @@ export const useSendPhotoMessageMutation = () => {
         moveChatWithMessageToTop(current, message),
       );
 
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.chat.all,
-      });
     },
   });
 };
@@ -184,14 +176,12 @@ export const useMarkChatReadMutation = () => {
 
 export const useMessagesRealtime = (chatId: string | undefined) => {
   const queryClient = useQueryClient();
+  const socket = useSocket();
 
   useEffect(() => {
-    if (!chatId) {
+    if (!chatId || !socket) {
       return;
     }
-
-    let isActive = true;
-    let socket: Socket | undefined;
 
     const handleMessageUpdate = (message: Message) => {
       queryClient.setQueryData<Message[]>(
@@ -204,32 +194,25 @@ export const useMessagesRealtime = (chatId: string | undefined) => {
       );
     };
 
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!isActive || !data.session?.access_token) {
-        return;
-      }
+    const joinChat = () => socket.emit("chat.join", { chatId });
 
-      socket = io(API_ORIGIN, {
-        auth: {
-          token: data.session.access_token,
-        },
-        transports: ["websocket"],
-      });
+    if (socket.connected) {
+      joinChat();
+    }
 
-      socket.on("connect", () => {
-        socket?.emit("chat.join", { chatId });
-      });
-      socket.on("message.created", handleMessageUpdate);
-      socket.on("message.edited", handleMessageUpdate);
-      socket.on("message.deleted", handleMessageUpdate);
-    });
+    socket.on("connect", joinChat);
+    socket.on("message.created", handleMessageUpdate);
+    socket.on("message.edited", handleMessageUpdate);
+    socket.on("message.deleted", handleMessageUpdate);
 
     return () => {
-      isActive = false;
-      socket?.emit("chat.leave", { chatId });
-      socket?.disconnect();
+      socket.off("connect", joinChat);
+      socket.off("message.created", handleMessageUpdate);
+      socket.off("message.edited", handleMessageUpdate);
+      socket.off("message.deleted", handleMessageUpdate);
+      socket.emit("chat.leave", { chatId });
     };
-  }, [chatId, queryClient]);
+  }, [chatId, queryClient, socket]);
 };
 
 export const useChatListRealtime = (
@@ -237,10 +220,12 @@ export const useChatListRealtime = (
   currentUserId: string | undefined,
 ) => {
   const queryClient = useQueryClient();
+  const socket = useSocket();
 
   useEffect(() => {
-    let isActive = true;
-    let socket: Socket | undefined;
+    if (!socket) {
+      return;
+    }
 
     const handleMessageCreated = (message: Message) => {
       const chats = queryClient.getQueryData<Chat[]>(queryKeys.chat.all);
@@ -278,28 +263,16 @@ export const useChatListRealtime = (
       );
     };
 
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!isActive || !data.session?.access_token) {
-        return;
-      }
-
-      socket = io(API_ORIGIN, {
-        auth: {
-          token: data.session.access_token,
-        },
-        transports: ["websocket"],
-      });
-
-      socket.on("chat.created", handleChatCreated);
-      socket.on("chat.message_created", handleMessageCreated);
-      socket.on("chat.read", handleChatRead);
-    });
+    socket.on("chat.created", handleChatCreated);
+    socket.on("chat.message_created", handleMessageCreated);
+    socket.on("chat.read", handleChatRead);
 
     return () => {
-      isActive = false;
-      socket?.disconnect();
+      socket.off("chat.created", handleChatCreated);
+      socket.off("chat.message_created", handleMessageCreated);
+      socket.off("chat.read", handleChatRead);
     };
-  }, [activeChatId, currentUserId, queryClient]);
+  }, [activeChatId, currentUserId, queryClient, socket]);
 };
 
 export const useChatsQuery = () =>

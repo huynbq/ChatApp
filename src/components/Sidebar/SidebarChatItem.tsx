@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getChatMemberLabel, getChatTitle } from "@/lib/chat";
 import { cn } from "@/lib/utils";
 import type { Chat, ChatMember } from "@/types/types";
+
 import { Badge } from "../ui/badge";
 
 const getInitials = (name: string) =>
@@ -103,6 +104,7 @@ export function SidebarChatItem({
         isActive && "bg-muted text-foreground",
       )}
       onClick={onClick}
+      aria-current={isActive ? "page" : undefined}
     >
       <ChatListAvatar chat={chat} currentUserId={currentUserId} />
       <span className="min-w-0 flex-1">
@@ -114,7 +116,7 @@ export function SidebarChatItem({
         </span>
       </span>
       {unreadCount > 0 ? (
-        <Badge variant={"destructive"}> {unreadCount > 99 ? "99+" : unreadCount}</Badge>
+        <Badge variant="destructive">{unreadCount > 99 ? "99+" : unreadCount}</Badge>
       ) : null}
     </Button>
   );

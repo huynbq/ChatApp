@@ -1,6 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
+
 import { userApi } from "@/api/userApi";
 import { queryKeys } from "@/constants/queryKeys";
-import { useQuery } from "@tanstack/react-query";
 
 export const useUsersQuery = ({
   enabled = true,
@@ -12,5 +13,5 @@ export const useUsersQuery = ({
   useQuery({
     enabled,
     queryFn: () => userApi.getUsers({ search }),
-    queryKey: queryKeys.user.list({ search }),
+    queryKey: queryKeys.user.list(search),
   });
