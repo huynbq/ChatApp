@@ -19,6 +19,8 @@ import {
 import { ScrollButton } from "@/components/ui/scroll-button";
 import { useAuth } from "@/auth/useAuth";
 import {
+  useDeleteMessageMutation,
+  useEditMessageMutation,
   useMarkChatReadMutation,
   useMessagesQuery,
   useMessagesRealtime,
@@ -47,8 +49,12 @@ const ChatPage = () => {
   const { user } = useAuth();
   const { chatId } = useParams();
   const [prompt, setPrompt] = useState("");
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
   const { data: chatMessages = [], isLoading } = useMessagesQuery(chatId);
   const sendMessage = useSendMessageMutation();
+  const editMessage = useEditMessageMutation();
+  const deleteMessage = useDeleteMessageMutation();
   const markChatRead = useMarkChatReadMutation();
   useMessagesRealtime(chatId);
 
@@ -67,6 +73,33 @@ const ChatPage = () => {
 
     sendMessage.mutate({ chatId, content });
   };
+
+  const startEditing = (messageId: string, content: string | null) => {
+    setEditingMessageId(messageId);
+    setEditContent(content ?? "");
+  };
+
+  const cancelEditing = () => {
+    setEditingMessageId(null);
+    setEditContent("");
+  };
+
+  const saveEdit = () => {
+    const content = editContent.trim();
+    if (!chatId || !editingMessageId || !content) return;
+
+    editMessage.mutate(
+      { chatId, content, messageId: editingMessageId },
+      { onSuccess: cancelEditing },
+    );
+  };
+
+  const handleDelete = (messageId: string) => {
+    if (!chatId) return;
+
+    deleteMessage.mutate({ chatId, messageId });
+  };
+
   return (
     <main className="flex h-full min-h-0 flex-col">
       <div className="relative min-h-0 flex-1">
@@ -93,6 +126,11 @@ const ChatPage = () => {
                 ? getSenderName(message.sender)
                 : "User";
               const senderFallback = getInitials(senderName);
+              const isEditing = editingMessageId === message.id;
+              const canModify = isCurrentUser && !message.isDeleted;
+              const messageText = message.isDeleted
+                ? "Message deleted"
+                : message.content || "Attachment";
 
               return (
                 <Message
@@ -109,8 +147,14 @@ const ChatPage = () => {
                         alt={senderName}
                         fallback={senderFallback}
                       />
-                      <MessageContent className="text-foreground prose flex-1 max-w-fit">
-                        {message.content || "Attachment"}
+                      <MessageContent
+                        className={cn(
+                          "text-foreground prose flex-1 max-w-fit ",
+                          message.isDeleted &&
+                            "bg-muted text-muted-foreground italic",
+                        )}
+                      >
+                        {messageText}
                       </MessageContent>
                     </div>
                   ) : (
@@ -121,33 +165,98 @@ const ChatPage = () => {
                         fallback={senderFallback}
                       />
                       <div className="flex flex-col min-w-0">
-                        <MessageContent className="bg-blue-600 text-blue-50">
-                          {message.content || "Attachment"}
-                        </MessageContent>
-                        <MessageActions
-                          className={cn(
-                            "flex gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100",
-                          )}
-                        >
-                          <MessageAction tooltip="Edit" delayDuration={100}>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="rounded-full"
+                        {isEditing ? (
+                          <div className="flex min-w-0 flex-col gap-2">
+                            <textarea
+                              value={editContent}
+                              onChange={(event) =>
+                                setEditContent(event.target.value)
+                              }
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                  cancelEditing();
+                                }
+
+                                if (event.key === "Enter" && !event.shiftKey) {
+                                  event.preventDefault();
+                                  saveEdit();
+                                }
+                              }}
+                              className="border-input bg-background min-h-20 w-72 max-w-full resize-none rounded-2xl border px-4 py-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              autoFocus
+                            />
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={cancelEditing}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={
+                                  !editContent.trim() || editMessage.isPending
+                                }
+                                onClick={saveEdit}
+                              >
+                                Save
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <MessageContent
+                              className={cn(
+                                "bg-blue-600 text-blue-50",
+                                message.isDeleted &&
+                                  "bg-muted text-muted-foreground italic",
+                              )}
                             >
-                              <Pencil />
-                            </Button>
-                          </MessageAction>
-                          <MessageAction tooltip="Delete" delayDuration={100}>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="rounded-full"
-                            >
-                              <Trash />
-                            </Button>
-                          </MessageAction>
-                        </MessageActions>
+                              {messageText}
+                            </MessageContent>
+                            {message.editedAt && !message.isDeleted ? (
+                              <span className="text-muted-foreground mt-1 text-right text-xs">
+                                Edited
+                              </span>
+                            ) : null}
+                          </>
+                        )}
+                        {canModify && !isEditing ? (
+                          <MessageActions
+                            className={cn(
+                              "flex justify-end gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100",
+                            )}
+                          >
+                            <MessageAction tooltip="Edit" delayDuration={100}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="rounded-full"
+                                onClick={() =>
+                                  startEditing(message.id, message.content)
+                                }
+                              >
+                                <Pencil />
+                              </Button>
+                            </MessageAction>
+                            <MessageAction tooltip="Delete" delayDuration={100}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="rounded-full"
+                                disabled={deleteMessage.isPending}
+                                onClick={() => handleDelete(message.id)}
+                              >
+                                <Trash />
+                              </Button>
+                            </MessageAction>
+                          </MessageActions>
+                        ) : null}
                       </div>
                     </div>
                   )}

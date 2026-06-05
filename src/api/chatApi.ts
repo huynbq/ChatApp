@@ -4,6 +4,8 @@ import type {
   CreateDirectChatInput,
   CreateGroupChatInput,
   CreateMessageInput,
+  DeleteMessageInput,
+  EditMessageInput,
   Message,
 } from "@/types/types";
 
@@ -21,6 +23,21 @@ export const chatApi = {
     const { data } = await apiClient.post<Message>(
       `/chats/${chatId}/messages`,
       body,
+    );
+
+    return data;
+  },
+  deleteMessage: async (input: DeleteMessageInput) => {
+    const { data } = await apiClient.delete<Message>(
+      `/messages/${input.messageId}`,
+    );
+
+    return data;
+  },
+  editMessage: async (input: EditMessageInput) => {
+    const { data } = await apiClient.patch<Message>(
+      `/messages/${input.messageId}`,
+      { content: input.content },
     );
 
     return data;

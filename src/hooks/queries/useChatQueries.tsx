@@ -11,6 +11,8 @@ import type {
   ChatReadPayload,
   CreateChatInput,
   CreateMessageInput,
+  DeleteMessageInput,
+  EditMessageInput,
   Message,
 } from "@/types/types";
 
@@ -42,6 +44,14 @@ const clearChatUnread = (chats: Chat[] = [], chatId: string) =>
     chat.id === chatId ? { ...chat, unreadCount: 0 } : chat,
   );
 
+const upsertMessage = (messages: Message[] = [], message: Message) => {
+  if (messages.some((item) => item.id === message.id)) {
+    return messages.map((item) => (item.id === message.id ? message : item));
+  }
+
+  return [...messages, message];
+};
+
 const upsertChatToTop = (chats: Chat[] = [], chat: Chat) => {
   const existing = chats.find((item) => item.id === chat.id);
 
@@ -66,15 +76,7 @@ export const useSendMessageMutation = () => {
     onSuccess: (message, input) => {
       queryClient.setQueryData<Message[]>(
         queryKeys.chat.messages(input.chatId),
-        (current = []) => {
-          if (current.some((item) => item.id === message.id)) {
-            return current.map((item) =>
-              item.id === message.id ? message : item,
-            );
-          }
-
-          return [...current, message];
-        },
+        (current = []) => upsertMessage(current, message),
       );
 
       queryClient.setQueryData<Chat[]>(queryKeys.chat.all, (current = []) =>
@@ -84,6 +86,42 @@ export const useSendMessageMutation = () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.chat.all,
       });
+    },
+  });
+};
+
+export const useEditMessageMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: EditMessageInput) => chatApi.editMessage(input),
+    onSuccess: (message, input) => {
+      queryClient.setQueryData<Message[]>(
+        queryKeys.chat.messages(input.chatId),
+        (current = []) => upsertMessage(current, message),
+      );
+
+      queryClient.setQueryData<Chat[]>(queryKeys.chat.all, (current = []) =>
+        moveChatWithMessageToTop(current, message),
+      );
+    },
+  });
+};
+
+export const useDeleteMessageMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: DeleteMessageInput) => chatApi.deleteMessage(input),
+    onSuccess: (message, input) => {
+      queryClient.setQueryData<Message[]>(
+        queryKeys.chat.messages(input.chatId),
+        (current = []) => upsertMessage(current, message),
+      );
+
+      queryClient.setQueryData<Chat[]>(queryKeys.chat.all, (current = []) =>
+        moveChatWithMessageToTop(current, message),
+      );
     },
   });
 };
@@ -131,20 +169,10 @@ export const useMessagesRealtime = (chatId: string | undefined) => {
     let isActive = true;
     let socket: Socket | undefined;
 
-    const upsertMessage = (message: Message) => {
+    const handleMessageUpdate = (message: Message) => {
       queryClient.setQueryData<Message[]>(
         queryKeys.chat.messages(chatId),
-        (current = []) => {
-          const index = current.findIndex((item) => item.id === message.id);
-
-          if (index === -1) {
-            return [...current, message];
-          }
-
-          return current.map((item) =>
-            item.id === message.id ? message : item,
-          );
-        },
+        (current = []) => upsertMessage(current, message),
       );
 
       queryClient.setQueryData<Chat[]>(queryKeys.chat.all, (current = []) =>
@@ -167,9 +195,9 @@ export const useMessagesRealtime = (chatId: string | undefined) => {
       socket.on("connect", () => {
         socket?.emit("chat.join", { chatId });
       });
-      socket.on("message.created", upsertMessage);
-      socket.on("message.edited", upsertMessage);
-      socket.on("message.deleted", upsertMessage);
+      socket.on("message.created", handleMessageUpdate);
+      socket.on("message.edited", handleMessageUpdate);
+      socket.on("message.deleted", handleMessageUpdate);
     });
 
     return () => {

@@ -24,6 +24,17 @@ export type CreateMessageInput = {
   replyToMessageId?: string;
 };
 
+export type EditMessageInput = {
+  chatId: string;
+  content: string;
+  messageId: string;
+};
+
+export type DeleteMessageInput = {
+  chatId: string;
+  messageId: string;
+};
+
 export type AuthCredentials = {
   email: string;
   password: string;
