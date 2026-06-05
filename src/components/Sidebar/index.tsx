@@ -4,13 +4,18 @@ import {
   SidebarContent,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-import { useChatsQuery } from "@/hooks/queries/useChatQueries";
+import { useChatListRealtime, useChatsQuery } from "@/hooks/queries/useChatQueries";
+import { useNavigate, useParams } from "react-router-dom";
 import CreateChatButton from "./CreateChatButton";
 import { SidebarChatItem, SidebarChatItemSkeleton } from "./SidebarChatItem";
 
 export function AppSidebar() {
   const { user } = useAuth();
   const { data: chats, isLoading } = useChatsQuery();
+  const navigate = useNavigate();
+  const { chatId } = useParams();
+
+  useChatListRealtime();
 
   return (
     <Sidebar>
@@ -30,6 +35,8 @@ export function AppSidebar() {
                 key={chat.id}
                 chat={chat}
                 currentUserId={user?.id}
+                isActive={chat.id === chatId}
+                onClick={() => navigate(`/chats/${chat.id}`)}
               />
             ))}
           </div>
